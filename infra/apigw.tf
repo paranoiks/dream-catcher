@@ -13,7 +13,6 @@ resource "aws_apigatewayv2_integration" "social" {
   api_id                 = aws_apigatewayv2_api.auth.id
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.social.invoke_arn
-  integration_method     = "POST"
   payload_format_version = "2.0"
 }
 

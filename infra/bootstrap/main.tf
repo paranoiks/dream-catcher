@@ -21,8 +21,10 @@ resource "aws_s3_bucket_versioning" "state" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
   bucket = aws_s3_bucket.state.id
   rule {
+    # AES256 (SSE-S3) keeps state encrypted at rest without the KMS-key-policy
+    # dance — the CI role needs no extra kms:* permissions to read/write state.
     apply_server_side_encryption_by_default {
-      sse_algorithm = "aws:kms"
+      sse_algorithm = "AES256"
     }
   }
 }

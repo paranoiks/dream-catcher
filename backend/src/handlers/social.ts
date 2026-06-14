@@ -3,7 +3,7 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 
 import { findOrCreateUser, issueTokens, NoAccountForToken } from '../lib/cognito';
-import { ProviderNotConfigured, verifyProvider, type Provider } from '../lib/verify';
+import { isTokenError, ProviderNotConfigured, verifyProvider, type Provider } from '../lib/verify';
 
 const config = {
   google: splitEnv('GOOGLE_CLIENT_IDS'),
@@ -43,12 +43,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   } catch (err) {
     if (err instanceof ProviderNotConfigured) return json(503, { error: 'provider not configured' });
     if (err instanceof NoAccountForToken) return json(401, { error: 'no account; sign in on this device first' });
-    // jose verification failures and the rest — don't leak details.
-    console.error('social auth failed:', err);
-    const name = err instanceof Error ? err.name : 'Error';
-    if (name.startsWith('JWT') || name.startsWith('JWS') || name === 'JOSEError') {
-      return json(401, { error: 'invalid token' });
-    }
+    if (isTokenError(err)) return json(401, { error: 'invalid token' });
+    console.error('social auth failed:', err); // unexpected — don't leak details
     return json(500, { error: 'internal error' });
   }
 };

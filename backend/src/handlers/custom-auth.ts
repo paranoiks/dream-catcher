@@ -2,6 +2,7 @@
 // The social broker, having already verified the provider token, answers the
 // challenge with the shared secret; this gate ensures only the broker can
 // complete a social sign-in. Email/password (SRP) auth never hits this path.
+import { timingSafeEqual } from 'node:crypto';
 import type {
   CreateAuthChallengeTriggerEvent,
   DefineAuthChallengeTriggerEvent,
@@ -14,6 +15,14 @@ type TriggerEvent =
   | VerifyAuthChallengeResponseTriggerEvent;
 
 const CHALLENGE_SECRET = process.env.CHALLENGE_SECRET ?? '';
+
+// Constant-time compare so the gate can't be brute-forced byte-by-byte via timing.
+function secretMatches(answer: string): boolean {
+  if (!CHALLENGE_SECRET || !answer) return false;
+  const a = Buffer.from(answer);
+  const b = Buffer.from(CHALLENGE_SECRET);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 export const handler = async (event: TriggerEvent): Promise<TriggerEvent> => {
   switch (event.triggerSource) {
@@ -45,8 +54,7 @@ export const handler = async (event: TriggerEvent): Promise<TriggerEvent> => {
 
     case 'VerifyAuthChallengeResponse_Authentication': {
       const e = event as VerifyAuthChallengeResponseTriggerEvent;
-      e.response.answerCorrect =
-        CHALLENGE_SECRET.length > 0 && e.request.challengeAnswer === CHALLENGE_SECRET;
+      e.response.answerCorrect = secretMatches(e.request.challengeAnswer);
       return e;
     }
 

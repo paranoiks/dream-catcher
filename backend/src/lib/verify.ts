@@ -1,5 +1,5 @@
 // verify.ts — validate a provider idToken against the provider's published JWKS.
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload } from 'jose';
 
 const googleJWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const appleJWKS = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
@@ -51,6 +51,12 @@ export class ProviderNotConfigured extends Error {
     super(`provider ${provider} is not configured`);
     this.name = 'ProviderNotConfigured';
   }
+}
+
+// Every token-shaped jose failure (bad signature, expired, claim mismatch, no
+// matching JWKS key, fetch timeout) extends JOSEError → treat as a 401, not a 500.
+export function isTokenError(err: unknown): boolean {
+  return err instanceof errors.JOSEError;
 }
 
 export async function verifyProvider(
