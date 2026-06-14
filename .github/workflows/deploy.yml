@@ -1,0 +1,60 @@
+name: Deploy (prod)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'infra/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write # assume the AWS role via OIDC
+  contents: read
+
+concurrency: deploy-prod # never two applies at once
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_VAR_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_VAR_google_client_ids: ${{ vars.GOOGLE_CLIENT_IDS_JSON || '[]' }}
+  TF_VAR_apple_audiences: ${{ vars.APPLE_AUDIENCES_JSON || '["com.paranoiks.dreamcatcher"]' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Build Lambda bundles
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: |
+          terraform -chdir=infra init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform apply
+        run: terraform -chdir=infra apply -input=false -auto-approve

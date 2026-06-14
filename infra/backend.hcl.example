@@ -1,0 +1,5 @@
+# Copy to backend.hcl (gitignored) and fill from `terraform -chdir=bootstrap output`.
+# Then: terraform init -backend-config=backend.hcl
+bucket         = "dream-catcher-tfstate-<your-account-id>"
+dynamodb_table = "dream-catcher-tflock"
+region         = "us-east-1"

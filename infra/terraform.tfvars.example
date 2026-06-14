@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars (gitignored) and fill in once the social apps exist.
+region  = "us-east-1"
+project = "dream-catcher"
+
+# Google OAuth client IDs (Google Cloud Console). The RN SDK mints an idToken
+# whose 'aud' is the Web client ID; iOS/Android client IDs are also accepted.
+google_client_ids = [
+  # "xxxx.apps.googleusercontent.com", # web
+  # "yyyy.apps.googleusercontent.com", # ios
+  # "zzzz.apps.googleusercontent.com", # android
+]
+
+# Apple: the native iOS Sign in with Apple token carries the app bundle ID as 'aud'.
+apple_audiences = ["com.paranoiks.dreamcatcher"]

@@ -1,0 +1,57 @@
+name: Plan
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'infra/**'
+      - '.github/workflows/**'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_VAR_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_VAR_google_client_ids: ${{ vars.GOOGLE_CLIENT_IDS_JSON || '[]' }}
+  TF_VAR_apple_audiences: ${{ vars.APPLE_AUDIENCES_JSON || '["com.paranoiks.dreamcatcher"]' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Build Lambda bundles
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive infra
+
+      - name: Terraform init
+        run: |
+          terraform -chdir=infra init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform plan
+        run: terraform -chdir=infra plan -input=false -no-color
