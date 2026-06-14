@@ -22,5 +22,12 @@ login UI anywhere** (that's the design-continuity requirement; don't reintroduce
 - Generated files are marked as such and must not be hand-edited (e.g. `frontend/src/theme/tokens.ts`).
 - Deploy is GitHub Actions → AWS over **OIDC** (no static keys). Prod-only for now. Commit `.terraform.lock.hcl`; never commit `*.tfvars` / `backend.hcl` / secrets.
 
+## Workflow (definition of done)
+For any non-trivial change: **implement → `/code-review` → fix real findings → update docs → verify → commit.**
+- **Review before committing.** `/code-review` reviews the branch diff (works on committed-but-unpushed work too). Use a local effort level — `high` for security-sensitive code like auth — then triage: verify findings, drop false positives, fix the rest. `/code-review ultra` is cloud/billed and user-triggered only; don't launch it.
+- **Docs ship with the change.** Update the relevant `AGENTS.md` and any invariants in the **same commit** as the code.
+- **Verify** with the per-area commands above before committing.
+- Trivial docs-only edits may skip the full review.
+
 ## Git
 Default branch `main`. Keep commit messages factual; end with the `Co-Authored-By` trailer.
