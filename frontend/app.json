@@ -47,7 +47,9 @@
             "./assets/fonts/Spectral-SemiBoldItalic.ttf"
           ]
         }
-      ]
+      ],
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

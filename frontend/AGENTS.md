@@ -21,5 +21,7 @@ npx expo export --platform web      # statically renders every route = full modu
 ## Navigation
 expo-router. Root `Stack` in `app/_layout.tsx`; tabs in `app/(tabs)/` with a **custom dock** tab bar (`app/(tabs)/_layout.tsx`) — not the default tab bar. Pushed detail routes: `dream/[id]`, `symbol/[tag]`, `reading/[id]`; `record` is a modal. State: `DreamsProvider` (in-memory, sample-seeded) + `ThemeProvider`.
 
-## Auth (in progress — backend in `../infra` + `../backend`)
-Native SDKs (`expo-apple-authentication`, `@react-native-google-signin`) + Cognito SRP for email/pass. **These native modules require an EAS dev build — they don't run in Expo Go.** AI readings currently use offline fallbacks (`src/ai/dream-ai.ts`, `callLLM` stubbed).
+## Auth (backend in `../infra` + `../backend`)
+Auth services live in `src/auth/`: `config.ts` (public Cognito/API ids from `terraform output`), `cognito.ts` (email/password via SRP — `react-native-get-random-values` is imported first; password never leaves the device), `social.ts` (POST `/auth/social` broker), `storage.ts` (tokens in `expo-secure-store`, one key per token for the ~2KB iOS limit), `jwt.ts`, and `auth-provider.tsx` (`useAuth()` → status/user + sign-in/up/confirm/forgot/social/out; hydrates + refreshes on launch).
+- **Email/password works against the live Cognito today.** Social needs real Apple/Google client IDs + native config (`ios.bundleIdentifier`, the apple plugin, the google `iosUrlScheme`) + an **EAS dev build** — native SDKs don't run in Expo Go.
+- AI readings still use offline fallbacks (`src/ai/dream-ai.ts`, `callLLM` stubbed).
