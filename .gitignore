@@ -60,3 +60,6 @@ override.tf.json
 
 # Backend Lambda build output
 backend/dist/
+
+# direnv
+.direnv/

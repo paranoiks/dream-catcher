@@ -10,6 +10,9 @@ terraform -chdir=infra init -backend=false && terraform -chdir=infra validate
 ```
 Run human bootstrap/apply steps from `README.md`. Do not commit `*.tfvars`, `backend.hcl`, or `.terraform/`; **do** commit `.terraform.lock.hcl`.
 
+## Local AWS auth (multi-account safety)
+Local runs target AWS via a **named profile, never `default`** (the repo has multiple AWS accounts in play; `default` is how you hit the wrong one). This repo pins `AWS_PROFILE=dreamcatcher` via `.envrc` (direnv); otherwise prefix commands with `AWS_PROFILE=dreamcatcher`. **Always confirm before an apply:** `aws sts get-caller-identity` must show the dreamcatcher account ID. CI does not use profiles — it assumes the deploy role via OIDC.
+
 ## Must-know
 - **Build the backend before `terraform plan/apply`.** `lambda.tf` zips `backend/dist/*` via `archive_file`; without `npm --prefix backend run build` those dirs don't exist and plan fails. CI does this in the build step.
 - **State backend is partial config** (`versions.tf` has `backend "s3" {}`). Supply bucket/table/region via `-backend-config=backend.hcl` (copy from `backend.hcl.example`) or CI `-backend-config` flags.
