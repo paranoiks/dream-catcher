@@ -27,7 +27,7 @@ For any non-trivial change: **implement → `/code-review` → fix real findings
 - **Review before committing.** `/code-review` reviews the branch diff (works on committed-but-unpushed work too). Use a local effort level — `high` for security-sensitive code like auth — then triage: verify findings, drop false positives, fix the rest. `/code-review ultra` is cloud/billed and user-triggered only; don't launch it.
 - **Docs ship with the change.** Update the relevant `AGENTS.md` and any invariants in the **same commit** as the code.
 - **Verify** with the per-area commands above before committing.
-- Trivial docs-only edits may skip the full review.
+- **Enforced gate:** a `PreToolUse` hook in `.claude/settings.json` reviews the staged diff on every `git commit` — doc/workflow/config-only diffs pass automatically; a diff touching code (`backend/**`, `frontend/src/**`, `infra/**/*.tf`, `scripts/**`) is reviewed and the commit is **blocked** on a real bug. That's the floor, not the ceiling: still run the full `/code-review` for substantial changes rather than leaning on the hook. "Trivial" is now this objective path rule, not a judgment call.
 
 ## Git
 Default branch `main`. Keep commit messages factual; end with the `Co-Authored-By` trailer.
