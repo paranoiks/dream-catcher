@@ -1,8 +1,10 @@
-// social.ts — POST /auth/social { provider, idToken } → Cognito tokens.
-// Verifies the provider token, finds-or-creates the pool user, returns a session.
+// social.ts — POST /auth/social { provider, idToken } → Cognito session.
+// Verifies the provider token, finds-or-creates the pool user, returns a session
+// in the same shape as the email/password endpoints (tokens + user).
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 
 import { findOrCreateUser, issueTokens, NoAccountForToken } from '../lib/cognito';
+import { errorResponse, json, userFromIdToken } from '../lib/respond';
 import { isTokenError, ProviderNotConfigured, verifyProvider, type Provider } from '../lib/verify';
 
 const config = {
@@ -17,34 +19,29 @@ function splitEnv(name: string): string[] {
     .filter(Boolean);
 }
 
-function json(statusCode: number, body: unknown) {
-  return { statusCode, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) };
-}
-
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   let body: { provider?: string; idToken?: string };
   try {
     body = JSON.parse(event.body ?? '{}');
   } catch {
-    return json(400, { error: 'invalid JSON body' });
+    return json(400, { code: 'InvalidJSON' });
   }
 
   const provider = body.provider as Provider;
   const idToken = body.idToken;
   if ((provider !== 'google' && provider !== 'apple') || !idToken) {
-    return json(400, { error: 'provider must be "google" or "apple" and idToken is required' });
+    return json(400, { code: 'InvalidParameterException' });
   }
 
   try {
     const identity = await verifyProvider(provider, idToken, config);
     const username = await findOrCreateUser(identity);
     const tokens = await issueTokens(username);
-    return json(200, tokens);
+    return json(200, { ...tokens, user: userFromIdToken(tokens.idToken) });
   } catch (err) {
-    if (err instanceof ProviderNotConfigured) return json(503, { error: 'provider not configured' });
-    if (err instanceof NoAccountForToken) return json(401, { error: 'no account; sign in on this device first' });
-    if (isTokenError(err)) return json(401, { error: 'invalid token' });
-    console.error('social auth failed:', err); // unexpected — don't leak details
-    return json(500, { error: 'internal error' });
+    if (err instanceof ProviderNotConfigured) return json(503, { code: 'ProviderNotConfigured' });
+    if (err instanceof NoAccountForToken) return json(401, { code: 'NoAccount' });
+    if (isTokenError(err)) return json(401, { code: 'InvalidToken' });
+    return errorResponse(err);
   }
 };

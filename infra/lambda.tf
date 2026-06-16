@@ -136,3 +136,65 @@ resource "aws_lambda_function" "social" {
 
   depends_on = [aws_cloudwatch_log_group.social]
 }
+
+# ── email/password broker Lambda (/auth/signup, /login, /confirm, ...) ─────────
+data "archive_file" "email_auth" {
+  type        = "zip"
+  source_dir  = "${path.module}/../backend/dist/email-auth"
+  output_path = "${path.module}/.build/email-auth.zip"
+}
+
+resource "aws_iam_role" "email_auth" {
+  name               = "${var.project}-email-auth"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "email_auth_logs" {
+  role       = aws_iam_role.email_auth.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "email_auth_cognito" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "cognito-idp:SignUp",
+      "cognito-idp:ConfirmSignUp",
+      "cognito-idp:ResendConfirmationCode",
+      "cognito-idp:InitiateAuth",
+      "cognito-idp:ForgotPassword",
+      "cognito-idp:ConfirmForgotPassword",
+    ]
+    resources = [aws_cognito_user_pool.main.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "email_auth_cognito" {
+  name   = "${var.project}-email-auth-cognito"
+  role   = aws_iam_role.email_auth.id
+  policy = data.aws_iam_policy_document.email_auth_cognito.json
+}
+
+resource "aws_cloudwatch_log_group" "email_auth" {
+  name              = "/aws/lambda/${var.project}-email-auth"
+  retention_in_days = 14
+}
+
+resource "aws_lambda_function" "email_auth" {
+  function_name    = "${var.project}-email-auth"
+  role             = aws_iam_role.email_auth.arn
+  runtime          = "nodejs20.x"
+  handler          = "index.handler"
+  filename         = data.archive_file.email_auth.output_path
+  source_code_hash = data.archive_file.email_auth.output_base64sha256
+  timeout          = 15
+  memory_size      = 256
+
+  environment {
+    variables = {
+      CLIENT_ID = aws_cognito_user_pool_client.app.id
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.email_auth]
+}

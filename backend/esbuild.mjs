@@ -4,6 +4,7 @@ import { build } from 'esbuild';
 
 const handlers = [
   { name: 'social', entry: 'src/handlers/social.ts' },
+  { name: 'email-auth', entry: 'src/handlers/email-auth.ts' },
   { name: 'custom-auth', entry: 'src/handlers/custom-auth.ts' },
 ];
 

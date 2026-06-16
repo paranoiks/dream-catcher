@@ -18,6 +18,7 @@ Local runs target AWS via a **named profile, never `default`** (the repo has mul
 - **State backend is partial config** (`versions.tf` has `backend "s3" {}`). Supply bucket/table/region via `-backend-config=backend.hcl` (copy from `backend.hcl.example`) or CI `-backend-config` flags.
 - **Resource naming** is `${var.project}-*` (default `dream-catcher`). The CI IAM policy in `bootstrap/main.tf` scopes IAM to that prefix — keep new resource names under it.
 - **Cognito auth flows:** the app client allows `USER_PASSWORD_AUTH` (email/pass — SRP isn't usable on RN/Expo, which lack the native secure-random it needs), `CUSTOM_AUTH` (social broker), `REFRESH_TOKEN_AUTH`. No client secret (public mobile client). The `lambda_config` triggers all point at the one `custom-auth` Lambda.
+- **HTTP API (`apigw.tf`) → two broker Lambdas:** `POST /auth/social` → `social`; the seven `/auth/{signup,confirm,resend,login,forgot,forgot-confirm,refresh}` routes → `email-auth` (one Lambda, routed by `event.routeKey`). `custom-auth` is a Cognito trigger, not an API route.
 - Cognito email is `COGNITO_DEFAULT` (50/day cap) — switch to SES before real traffic.
 
 ## CI variable contract (GitHub repo Variables)
