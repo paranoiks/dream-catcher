@@ -6,8 +6,13 @@ export type AuthTokens = {
 
 export type AuthUser = {
   sub: string;
-  username: string; // cognito:username — the value used to refresh the session
   email?: string;
+};
+
+export type Session = {
+  tokens: AuthTokens;
+  user: AuthUser;
+  expiresAt: number; // ms epoch when the id/access token expires
 };
 
 export type Provider = 'google' | 'apple';

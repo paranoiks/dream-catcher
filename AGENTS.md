@@ -9,12 +9,14 @@ has its own `AGENTS.md` that the harness auto-loads when you work in that subtre
 frontend/   Expo SDK 56 app (expo-router). The dream journal + "celestial almanac" design.   -> frontend/AGENTS.md
 backend/    TypeScript Lambdas for Cognito auth (social token broker + custom-auth trigger).  -> backend/AGENTS.md
 infra/      Terraform: Cognito, Lambdas, HTTP API, state backend, GitHub OIDC.                -> infra/AGENTS.md
+docs/       Deep per-system reference (the why + full contracts), linked from each AGENTS.md.  -> docs/README.md
 ```
 
 ## Architecture in one line
-One **Cognito** user pool is the identity directory; email/password uses client-side SRP and
-Apple/Google use native SDKs whose tokens a Lambda exchanges for Cognito tokens — **no hosted
-login UI anywhere** (that's the design-continuity requirement; don't reintroduce Hosted UI).
+One **Cognito** user pool is the identity directory. The app talks **only to our `/auth/*` broker**
+(Lambdas that make the Cognito calls) — for both email/password and native Apple/Google — so there's
+**no Cognito SDK or native crypto on the device** and **no hosted login UI anywhere** (don't
+reintroduce Hosted UI — it's the design-continuity requirement, and Cognito SRP doesn't work on Expo).
 
 ## Conventions
 - TypeScript everywhere; kebab-case filenames; reuse existing modules before adding new ones.
@@ -23,11 +25,11 @@ login UI anywhere** (that's the design-continuity requirement; don't reintroduce
 - Deploy is GitHub Actions → AWS over **OIDC** (no static keys). Prod-only for now. Commit `.terraform.lock.hcl`; never commit `*.tfvars` / `backend.hcl` / secrets.
 
 ## Workflow (definition of done)
-For any non-trivial change: **implement → `/code-review` → fix real findings → update docs → verify → commit.**
-- **Review before committing.** `/code-review` reviews the branch diff (works on committed-but-unpushed work too). Use a local effort level — `high` for security-sensitive code like auth — then triage: verify findings, drop false positives, fix the rest. `/code-review ultra` is cloud/billed and user-triggered only; don't launch it.
-- **Docs ship with the change.** Update the relevant `AGENTS.md` and any invariants in the **same commit** as the code.
-- **Verify** with the per-area commands above before committing.
-- **Enforced gate:** a `PreToolUse` hook in `.claude/settings.json` reviews the staged diff on every `git commit` — doc/workflow/config-only diffs pass automatically; a diff touching code (`backend/**`, `frontend/src/**`, `infra/**/*.tf`, `scripts/**`) is reviewed and the commit is **blocked** on a real bug. That's the floor, not the ceiling: still run the full `/code-review` for substantial changes rather than leaning on the hook. "Trivial" is now this objective path rule, not a judgment call.
+**Claude builds and verifies; Claude never commits or pushes** — enforced in `.claude/settings.json` by a deny rule plus a `PreToolUse` guard that blocks any `git … commit`/`push` (a bare deny misses forms like `git -C <path> commit`). This is a UI-heavy app, so changes are tested on real devices before they land. Per chunk:
+1. **Build + self-verify** — run the per-area commands above (frontend → `tsc` + `expo export`; backend → `typecheck` + `build`; infra → `fmt` + `validate`), updating docs in the same change.
+2. **Human tests** it on **iOS and Android** (look & feel).
+3. **Code review** — run `/code-review` (local effort; `high` for security-sensitive code like auth); triage findings and fix the real ones. `/code-review ultra` is cloud/billed and user-triggered only; don't launch it.
+4. **Human commits + pushes** — docs ship in the same commit as the code; messages end with the `Co-Authored-By` trailer.
 
 ## Git
-Default branch `main`. Keep commit messages factual; end with the `Co-Authored-By` trailer.
+Default branch `main`. **Claude does not run `git commit` or `git push`** (denied in settings) — the human commits after testing + review.

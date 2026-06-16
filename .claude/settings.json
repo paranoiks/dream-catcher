@@ -2,18 +2,17 @@
   "enabledPlugins": {
     "expo@claude-plugins-official": true
   },
+  "permissions": {
+    "deny": ["Bash(git commit:*)", "Bash(git push:*)"]
+  },
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
           {
-            "type": "agent",
-            "if": "Bash(git commit:*)",
-            "model": "claude-sonnet-4-6",
-            "timeout": 180,
-            "statusMessage": "Reviewing staged changes before commit…",
-            "prompt": "You are a pre-commit review gate; decide ALLOW or BLOCK for this git commit. Inspect the staged changes with `git diff --cached --stat` then `git diff --cached`.\n\nSCOPE: If the staged diff changes ONLY docs (**/*.md), GitHub workflows (.github/**), or config (**/*.json, .gitignore, .envrc, **/*.example), ALLOW without deep review.\n\nCODE: Otherwise it touches code (backend/**, frontend/src/**, infra/**/*.tf, scripts/**). Review the staged changes for real correctness or security bugs — inverted/wrong conditions, off-by-one, null/undefined deref, missing await, swallowed errors, auth/permission mistakes, injection. If you find a concrete real bug, BLOCK and name the file + line + the bug. If the code is correct, ALLOW. Never block on style, naming, or subjective preference. Be decisive; when uncertain and it is not a clear bug, ALLOW."
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // empty'); printf '%s' \"$cmd\" | grep -Eq 'git[^;&|]*(commit|push)' && printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Claude does not commit or push — the human commits after device testing + review (see AGENTS.md).\"}}'; true"
           }
         ]
       }

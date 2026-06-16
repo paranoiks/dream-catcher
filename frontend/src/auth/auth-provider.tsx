@@ -1,13 +1,11 @@
-// AuthProvider — the app's auth state. Hydrates from SecureStore on launch
-// (refreshing an expired session when possible), and exposes email/password +
-// social sign-in. Social takes a native provider idToken and brokers it.
+// AuthProvider — the app's auth state, backed by the /auth/* broker. Hydrates from
+// SecureStore on launch (refreshing an expired session when possible), and exposes
+// email/password + social sign-in. Social takes a native provider idToken.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import * as cognito from './cognito';
-import { isIdTokenExpired, userFromIdToken } from './jwt';
-import { exchangeSocialToken } from './social';
-import { clearTokens, loadTokens, saveTokens } from './storage';
-import type { AuthTokens, AuthUser, Provider } from './types';
+import { api } from './api';
+import { clearSession, loadSession, saveSession } from './storage';
+import type { AuthUser, Provider, Session } from './types';
 
 type Status = 'loading' | 'signedOut' | 'signedIn';
 
@@ -30,37 +28,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  const applyTokens = useCallback(async (tokens: AuthTokens) => {
-    await saveTokens(tokens);
-    setUser(userFromIdToken(tokens.idToken));
+  const apply = useCallback(async (session: Session) => {
+    await saveSession(session);
+    setUser(session.user);
     setStatus('signedIn');
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const tokens = await loadTokens();
-      const u = tokens ? userFromIdToken(tokens.idToken) : null;
-      if (!tokens || !u) {
+      const session = await loadSession();
+      if (!session) {
         if (!cancelled) setStatus('signedOut');
         return;
       }
-      if (!isIdTokenExpired(tokens.idToken)) {
+      if (session.expiresAt > Date.now() + 60_000) {
         if (!cancelled) {
-          setUser(u);
+          setUser(session.user);
           setStatus('signedIn');
         }
         return;
       }
-      // expired id token — try a refresh before giving up
+      // expired — try a refresh before giving up
       try {
-        const refreshed = await cognito.refresh(u.username, tokens.refreshToken);
+        const refreshed = await api.refresh(session.tokens.refreshToken);
         if (cancelled) return;
-        await saveTokens(refreshed);
-        setUser(userFromIdToken(refreshed.idToken));
+        await saveSession(refreshed);
+        setUser(refreshed.user);
         setStatus('signedIn');
       } catch {
-        await clearTokens();
+        await clearSession();
         if (!cancelled) setStatus('signedOut');
       }
     })();
@@ -69,28 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(
-    async (email: string, password: string) => applyTokens(await cognito.signIn(email, password)),
-    [applyTokens],
-  );
-  const signUp = useCallback((email: string, password: string) => cognito.signUp(email, password), []);
-  const confirmSignUp = useCallback((email: string, code: string) => cognito.confirmSignUp(email, code), []);
-  const resendCode = useCallback((email: string) => cognito.resendCode(email), []);
-  const forgotPassword = useCallback((email: string) => cognito.forgotPassword(email), []);
+  const signIn = useCallback(async (email: string, password: string) => apply(await api.signIn(email, password)), [apply]);
+  const signUp = useCallback((email: string, password: string) => api.signUp(email, password), []);
+  const confirmSignUp = useCallback((email: string, code: string) => api.confirmSignUp(email, code), []);
+  const resendCode = useCallback((email: string) => api.resendCode(email), []);
+  const forgotPassword = useCallback((email: string) => api.forgotPassword(email), []);
   const confirmForgotPassword = useCallback(
-    (email: string, code: string, newPassword: string) => cognito.confirmForgotPassword(email, code, newPassword),
+    (email: string, code: string, newPassword: string) => api.confirmForgotPassword(email, code, newPassword),
     [],
   );
   const signInWithSocial = useCallback(
-    async (provider: Provider, providerIdToken: string) => applyTokens(await exchangeSocialToken(provider, providerIdToken)),
-    [applyTokens],
+    async (provider: Provider, providerIdToken: string) => apply(await api.social(provider, providerIdToken)),
+    [apply],
   );
   const signOut = useCallback(async () => {
-    if (user) cognito.signOut(user.username);
-    await clearTokens();
+    await clearSession();
     setUser(null);
     setStatus('signedOut');
-  }, [user]);
+  }, []);
 
   const value: AuthContextValue = {
     status,

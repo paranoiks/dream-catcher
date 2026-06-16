@@ -5,7 +5,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 
-import { CatalogLabel, Masthead, MoonPlate, Rule, Screen, Surface } from '@/components/almanac';
+import { Btn, CatalogLabel, Masthead, MoonPlate, Rule, Screen, Surface } from '@/components/almanac';
+import { useAuth } from '@/auth/auth-provider';
 import { fmtDateShort, MOODS, moodOf, roman, tagCounts, type Dream } from '@/data/dreams';
 import { useDreams } from '@/data/dreams-store';
 import { useTheme } from '@/theme/theme';
@@ -50,6 +51,7 @@ export default function ObservationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { dreams } = useDreams();
+  const { signOut } = useAuth();
 
   const counts = useMemo(() => tagCounts(dreams), [dreams]);
   const avg = Math.round(dreams.reduce((s, d) => s + d.mood, 0) / dreams.length);
@@ -159,6 +161,8 @@ export default function ObservationsScreen() {
             </Pressable>
           ))}
         </Surface>
+
+        <Btn variant="ghost" label="Leave the register" onPress={signOut} style={{ marginTop: 18 }} />
       </ScrollView>
     </Screen>
   );

@@ -1,6 +1,7 @@
 # backend/ — auth Lambdas (agent guide)
 
 TypeScript Lambdas for Cognito-backed auth. Bundled with esbuild, deployed by Terraform in `infra/`.
+**Why a broker, full endpoint contract, and the threat model:** `../docs/authentication.md`.
 
 ## Verify (always run before considering a change done)
 ```sh

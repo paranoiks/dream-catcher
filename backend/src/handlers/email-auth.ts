@@ -54,11 +54,13 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
 
       case 'POST /auth/confirm': {
+        if (!email || !code) return json(400, { code: 'InvalidParameterException' });
         await client.send(new ConfirmSignUpCommand({ ClientId: CLIENT_ID, Username: email, ConfirmationCode: code }));
         return json(200, { ok: true });
       }
 
       case 'POST /auth/resend': {
+        if (!email) return json(400, { code: 'InvalidParameterException' });
         await client.send(new ResendConfirmationCodeCommand({ ClientId: CLIENT_ID, Username: email }));
         return json(200, { ok: true });
       }
@@ -77,12 +79,13 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
 
       case 'POST /auth/forgot': {
+        if (!email) return json(400, { code: 'InvalidParameterException' });
         await client.send(new ForgotPasswordCommand({ ClientId: CLIENT_ID, Username: email }));
         return json(200, { ok: true });
       }
 
       case 'POST /auth/forgot-confirm': {
-        if (!password) return json(400, { code: 'InvalidParameterException' });
+        if (!email || !code || !password) return json(400, { code: 'InvalidParameterException' });
         await client.send(
           new ConfirmForgotPasswordCommand({ ClientId: CLIENT_ID, Username: email, ConfirmationCode: code, Password: password }),
         );

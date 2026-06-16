@@ -32,7 +32,6 @@ export function sessionFrom(r: AuthenticationResultType) {
 const STATUS: Record<string, number> = {
   NotAuthorizedException: 401,
   UserNotConfirmedException: 403,
-  UserNotFoundException: 404,
   UsernameExistsException: 409,
   CodeMismatchException: 400,
   ExpiredCodeException: 400,
@@ -42,8 +41,15 @@ const STATUS: Record<string, number> = {
   TooManyRequestsException: 429,
 };
 
+// Errors that would reveal whether an account exists are collapsed to the generic
+// "not authorized" response — same status AND code as a wrong password — so login,
+// confirm, etc. can't be used to enumerate registered emails. This mirrors the pool's
+// prevent_user_existence_errors=ENABLED for the paths Cognito doesn't already mask.
+const ENUMERATION_LEAKS = new Set(['UserNotFoundException']);
+
 export function errorResponse(err: unknown) {
   const name = err instanceof Error ? err.name : 'Error';
+  if (ENUMERATION_LEAKS.has(name)) return json(401, { code: 'NotAuthorizedException' });
   const status = STATUS[name];
   if (status) return json(status, { code: name });
   console.error('auth error:', err); // unexpected — don't leak details
