@@ -47,7 +47,7 @@ resource "aws_cognito_user_pool" "main" {
 }
 
 # Public mobile app client — no secret (SRP from the device); CUSTOM_AUTH used by
-# the social broker. Email/password sign-in/up happens client-side via SRP.
+# the social broker. Email/password sign-in uses USER_PASSWORD_AUTH (see explicit_auth_flows).
 resource "aws_cognito_user_pool_client" "app" {
   name         = "${var.project}-app"
   user_pool_id = aws_cognito_user_pool.main.id
@@ -56,8 +56,11 @@ resource "aws_cognito_user_pool_client" "app" {
   prevent_user_existence_errors = "ENABLED"
   enable_token_revocation       = true
 
+  # USER_PASSWORD_AUTH (not SRP): RN/Expo can't do SRP, which needs a native secure-random
+  # module Expo doesn't provide. Plaintext password is sent to Cognito over TLS. CUSTOM_AUTH
+  # is the social broker; REFRESH_TOKEN_AUTH for session refresh.
   explicit_auth_flows = [
-    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_CUSTOM_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]

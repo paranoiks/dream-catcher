@@ -9,7 +9,7 @@ npm --prefix backend run build        # esbuild -> dist/<name>/index.js
 ```
 
 ## Auth model (do not "simplify" away the invariants)
-- **Email/password is NOT handled here.** The app does it client-side via Cognito SRP. No endpoint, no password ever reaching a server.
+- **Email/password is NOT handled here.** The app does it directly against Cognito via `USER_PASSWORD_AUTH` (over TLS) — no endpoint here, and the password never reaches *our* backend.
 - **Social (`POST /auth/social`)**: verify the provider `idToken` (`lib/verify.ts`, jose + provider JWKS, checks `aud`/`iss`/`exp`) → `findOrCreateUser` → `issueTokens` (`lib/cognito.ts`).
 - **Token minting uses a `CUSTOM_AUTH` shared-secret challenge**, NOT a password. The broker answers the Cognito challenge with `CHALLENGE_SECRET`; the `custom-auth` trigger (`handlers/custom-auth.ts`, one Lambda for all three trigger sources) gates on it.
   - **Why:** lets the broker mint tokens for a social user without knowing/owning a password, and **never touches an existing email/password user's credentials**. A random password is set on a social user **only at creation** (to reach `CONFIRMED`) — never on a user that already exists.
